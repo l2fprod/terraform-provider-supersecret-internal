@@ -1,0 +1,13 @@
+# Binaries
+terraform-provider-supersecret*
+dist/
+
+# Go build cache
+*.test
+*.out
+
+# Generated docs (generated locally via make generate, not committed here)
+docs/
+
+# OS
+.DS_Store

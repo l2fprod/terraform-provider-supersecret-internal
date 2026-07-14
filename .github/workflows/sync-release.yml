@@ -1,0 +1,88 @@
+name: Sync Release to Public Repo
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install tfplugindocs
+        run: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
+
+      - name: Generate docs
+        run: tfplugindocs generate
+
+      - name: Checkout public repo
+        uses: actions/checkout@v4
+        with:
+          repository: l2fprod/terraform-provider-supersecret
+          token: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          path: public-repo-checkout
+
+      - name: Sync static files, docs, and examples to public repo
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+
+          # Static files from public-repo/ directory
+          cp public-repo/README.md public-repo-checkout/README.md
+          cp public-repo/LICENSE    public-repo-checkout/LICENSE
+
+          # Generated docs
+          rm -rf public-repo-checkout/docs
+          cp -r docs/ public-repo-checkout/docs
+
+          # Examples
+          rm -rf public-repo-checkout/examples
+          cp -r examples/ public-repo-checkout/examples
+
+          # Commit and push
+          cd public-repo-checkout
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: sync docs and examples for ${TAG}"
+          git push
+
+      - name: Download private release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          mkdir -p release-assets
+          gh release download "${TAG}" \
+            --repo "${{ github.repository }}" \
+            --dir release-assets
+
+      - name: Create public release and upload assets
+        env:
+          GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          RELEASE_NOTES_FILE="release-notes/${TAG}.md"
+          PUBLIC_REPO="l2fprod/terraform-provider-supersecret"
+
+          # Create the release on the public repo (creates the tag if needed)
+          gh release create "${TAG}" \
+            --repo "${PUBLIC_REPO}" \
+            --title "${TAG}" \
+            --notes-file "${RELEASE_NOTES_FILE}"
+
+          # Upload all assets
+          gh release upload "${TAG}" \
+            --repo "${PUBLIC_REPO}" \
+            release-assets/*
