@@ -8,7 +8,7 @@ test:
 
 generate:
 	go generate ./...
-	go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate
+	go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name supersecret --rendered-provider-name supersecret
 
 lint:
 	golangci-lint run ./...

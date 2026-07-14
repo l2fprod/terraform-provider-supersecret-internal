@@ -25,7 +25,7 @@ jobs:
         run: go install github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@latest
 
       - name: Generate docs
-        run: tfplugindocs generate
+        run: tfplugindocs generate --provider-name supersecret --rendered-provider-name supersecret
 
       - name: Checkout public repo
         uses: actions/checkout@v4
